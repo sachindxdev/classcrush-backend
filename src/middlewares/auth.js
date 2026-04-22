@@ -9,7 +9,7 @@ const userAuth = async (req, res, next) => {
       return res.status(401).send("Invalid Credentials!!!");
     }
     //Validate/Verify Token
-    const decodedObj = await jwt.verify(token, "ChatApp@567#98");
+    const decodedObj = await jwt.verify(token, process.env.JWT_SECRET);
 
     const { _id } = decodedObj;
 
