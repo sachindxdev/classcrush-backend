@@ -81,7 +81,25 @@ authRouter.get("/verify", async (req, res) => {
     const user = await User.findOne({ verificationToken: token });
 
     if (!user) {
-      return res.status(400).send("Invalid or expired token");
+      const alreadyVerifiedUser = await User.findOne({
+        isVerified: true,
+      });
+
+      if (alreadyVerifiedUser) {
+        return res.json({
+          message: "Email already verified",
+        });
+      }
+
+      return res.status(400).json({
+        message: "Invalid or expired token",
+      });
+    }
+
+    if (user.isVerified) {
+      return res.json({
+        message: "Email already verified",
+      });
     }
 
     user.isVerified = true;
@@ -96,9 +114,13 @@ authRouter.get("/verify", async (req, res) => {
       expires: new Date(Date.now() + 8 * 3600000),
     });
 
-    return res.send("Email verified and logged in!");
+    res.json({
+      message: "Email verified successfully",
+    });
   } catch (err) {
-    return res.status(500).send(err.message);
+    res.status(500).json({
+      message: err.message,
+    });
   }
 });
 
