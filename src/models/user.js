@@ -71,6 +71,13 @@ const userSchema = new Schema(
       type: [String],
       set: (skills) => [...new Set(skills)],
     },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+    },
   },
   { timestamps: true },
 );

@@ -3,6 +3,7 @@ const { userAuth } = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connectionRequest");
 const User = require("../models/user");
 const requestRouter = express.Router();
+const { sendEmail } = require("../services/sendEmail");
 
 requestRouter.post(
   "/request/send/:status/:toUserId",
@@ -53,6 +54,52 @@ requestRouter.post(
       });
       const data = await connectionRequest.save();
 
+      // SEND EMAIL
+      if (status === "interested") {
+        await sendEmail(
+          process.env.AWS_VERIFIED_EMAIL,
+          // toUser.email, - if aws production verified
+          "New Connection Request",
+          `
+<div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb;">
+  
+  <div style="max-width: 500px; margin: auto; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+    
+    <h2 style="color: #111827; text-align: center;">
+      💕 New Connection on ClassCrush
+    </h2>
+
+    <p style="font-size: 16px; color: #374151;">
+      Hi there,
+    </p>
+
+    <p style="font-size: 16px; color: #374151;">
+      <strong>${req.user.firstName}</strong> just showed interest in connecting with you on <strong>ClassCrush</strong>.
+    </p>
+
+    <p style="font-size: 15px; color: #6b7280;">
+      This could be the start of something exciting — a new friendship, collaboration, or maybe even more 😉. 
+      Don't miss out — check their profile and respond to the request.
+    </p>
+
+    <div style="text-align: center; margin: 20px 0;">
+       <a href="${process.env.CLIENT_URL}/requests"
+         style="background-color: #f43f5e; color: white; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+        View Request
+      </a>
+    </div>
+
+    <p style="font-size: 13px; color: #9ca3af; text-align: center;">
+      You're receiving this because you have an active ClassCrush account.
+    </p>
+
+  </div>
+
+</div>
+`,
+        );
+      }
+
       const actionText =
         status === "interested" ? `is interested in` : `has ${status}`;
 
@@ -61,7 +108,9 @@ requestRouter.post(
         data,
       });
     } catch (err) {
-      res.status(400).send("ERROR: " + err.message);
+      res.status(400).json({
+        message: err.message,
+      });
     }
   },
 );
@@ -95,6 +144,51 @@ requestRouter.post(
 
       connectionRequest.status = status;
       const data = await connectionRequest.save();
+
+      // SEND EMAIL
+      if (status === "accepted") {
+        await sendEmail(
+          process.env.AWS_VERIFIED_EMAIL,
+          // fromUser.email, - if aws production verified
+          "Request Accepted 🎉",
+          `
+  <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb;">
+    
+    <div style="max-width: 500px; margin: auto; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+      
+      <h2 style="color: #111827; text-align: center;">
+        Hurray!! 😍🎉
+      </h2>
+
+      <p style="font-size: 16px; color: #374151;">
+        Hi there,
+      </p>
+
+      <p style="font-size: 16px; color: #374151;">
+        <strong>${loggedInUser.firstName}</strong> has accepted your connection request on <strong>ClassCrush</strong>.
+      </p>
+
+      <p style="font-size: 15px; color: #6b7280;">
+        You can now start chatting and explore this new connection 🚀
+      </p>
+
+      <div style="text-align: center; margin: 20px 0;">
+        <a href="${process.env.CLIENT_URL}/connections"
+           style="background-color: #10b981; color: white; padding: 10px 18px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+          View Connections
+        </a>
+      </div>
+
+      <p style="font-size: 13px; color: #9ca3af; text-align: center;">
+        You're receiving this because you have an active ClassCrush account.
+      </p>
+
+    </div>
+
+  </div>
+  `,
+        );
+      }
 
       res.json({ message: `Connection request ${status}.`, data });
     } catch (err) {

@@ -2,6 +2,8 @@ const express = require("express");
 const { validateSignUpData } = require("../utils/validation");
 const bcrypt = require("bcrypt");
 const User = require("../models/user");
+const crypto = require("crypto");
+const { sendEmail } = require("../services/sendEmail");
 const authRouter = express.Router();
 
 //Create a User
@@ -10,17 +12,7 @@ authRouter.post("/signup", async (req, res) => {
     //Validation of data
     validateSignUpData(req);
 
-    const {
-      firstName,
-      lastName,
-      email,
-      password,
-      age,
-      gender,
-      photoUrl,
-      about,
-      skills,
-    } = req.body;
+    const { firstName, lastName, email, password } = req.body;
 
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -32,31 +24,81 @@ authRouter.post("/signup", async (req, res) => {
     //Encrypt Password
     const passwordHash = await bcrypt.hash(password, 10);
 
+    //generate email verification token
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+
     //Save Data in Database
     const user = new User({
       firstName,
       lastName,
       email,
       password: passwordHash,
-      age,
-      gender,
-      photoUrl,
-      about,
-      skills,
+      verificationToken,
+      isVerified: false,
     });
+
     const savedUser = await user.save();
-    const token = await savedUser.getJWT();
 
-    res.cookie("token", token, {
-      expires: new Date(Date.now() + 8 * 3600000),
-      httpOnly: true,
+    //Send Verification Email
+    const link = `${process.env.CLIENT_URL}/verify?token=${verificationToken}`;
+
+    await sendEmail(
+      process.env.AWS_VERIFIED_EMAIL,
+      //email - when aws production ses on
+      "Verify your ClassCrush account",
+      `<div style="font-family: Arial; padding: 20px;">
+    <h2>Welcome to ClassCrush 👋</h2>
+    <p>Hi ${firstName},</p>
+    <p>Thanks for signing up! Please verify your email to get started.</p>
+
+    <a href="${link}" 
+       style="display:inline-block;padding:10px 20px;background:#4CAF50;color:white;text-decoration:none;border-radius:5px;">
+       Verify Email
+    </a>
+
+    <p style="margin-top:20px;font-size:12px;color:gray;">
+      If you didnt sign up, you can ignore this email.
+    </p>
+  </div>`,
+    );
+
+    res.json({
+      message: "Signup successful. Check your email.",
+      data: savedUser,
     });
-
-    res.json({ message: "User added successfully.", data: savedUser });
   } catch (err) {
     return res.status(400).json({
       message: err.message || "Something went wrong",
     });
+  }
+});
+
+//Verify email of user
+authRouter.get("/verify", async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    const user = await User.findOne({ verificationToken: token });
+
+    if (!user) {
+      return res.status(400).send("Invalid or expired token");
+    }
+
+    user.isVerified = true;
+    user.verificationToken = null;
+
+    const savedUser = await user.save();
+
+    const jwtToken = savedUser.getJWT();
+
+    res.cookie("token", jwtToken, {
+      httpOnly: true,
+      expires: new Date(Date.now() + 8 * 3600000),
+    });
+
+    return res.send("Email verified and logged in!");
+  } catch (err) {
+    return res.status(500).send(err.message);
   }
 });
 
@@ -83,6 +125,12 @@ authRouter.post("/login", async (req, res) => {
     if (!isPasswordValid) {
       return res.status(400).json({
         message: "Invalid credentials",
+      });
+    }
+
+    if (!user.isVerified) {
+      return res.status(400).json({
+        message: "Please verify your email first",
       });
     }
 
