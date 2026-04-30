@@ -1,40 +1,19 @@
-const { SendEmailCommand } = require("@aws-sdk/client-ses");
-const { sesClient } = require("./sesClient");
+const { Resend } = require("resend");
 
-const createSendEmailCommand = (to, subject, html) => {
-  return new SendEmailCommand({
-    Destination: {
-      ToAddresses: [to],
-    },
-    Message: {
-      Body: {
-        Html: {
-          Charset: "UTF-8",
-          Data: html,
-        },
-        Text: {
-          Charset: "UTF-8",
-          Data: "Open this email in HTML format",
-        },
-      },
-      Subject: {
-        Charset: "UTF-8",
-        Data: subject,
-      },
-    },
-    Source: "Team ClassCrush <info@classcrush.online>",
-  });
-};
+const resend = new Resend(process.env.RESEND_EMAIL_API_KEY);
 
 const sendEmail = async (to, subject, html) => {
-  const command = createSendEmailCommand(to, subject, html);
-
   try {
-    return await sesClient.send(command);
+    const response = await resend.emails.send({
+      from: "ClassCrush <info@classcrush.online>",
+      to: to,
+      subject: subject,
+      html: html,
+    });
+
+    return response;
   } catch (error) {
-    if (error.name === "MessageRejected") {
-      console.error("Email rejected:", error.message);
-    }
+    console.error("Email error:", error);
     throw error;
   }
 };

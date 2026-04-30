@@ -57,8 +57,7 @@ requestRouter.post(
       // SEND EMAIL
       if (status === "interested") {
         await sendEmail(
-          process.env.AWS_VERIFIED_EMAIL,
-          // toUser.email, - if aws production verified
+          toUser.email,
           "New Connection Request",
           `
 <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb;">
@@ -147,9 +146,9 @@ requestRouter.post(
 
       // SEND EMAIL
       if (status === "accepted") {
+        const fromUser = await User.findById(connectionRequest.fromUserId);
         await sendEmail(
-          process.env.AWS_VERIFIED_EMAIL,
-          // fromUser.email, - if aws production verified
+          fromUser.email,
           "Request Accepted 🎉",
           `
   <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9fafb;">

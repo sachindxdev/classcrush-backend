@@ -3,8 +3,8 @@ const { validateSignUpData } = require("../utils/validation");
 const bcrypt = require("bcrypt");
 const User = require("../models/user");
 const crypto = require("crypto");
-const { sendEmail } = require("../services/sendEmail");
 const authRouter = express.Router();
+const { sendEmail } = require("../services/sendEmail");
 
 //Create a User
 authRouter.post("/signup", async (req, res) => {
@@ -43,8 +43,7 @@ authRouter.post("/signup", async (req, res) => {
     const link = `${process.env.CLIENT_URL}/verify?token=${verificationToken}`;
 
     await sendEmail(
-      process.env.AWS_VERIFIED_EMAIL,
-      //email - when aws production ses on
+      email,
       "Verify your ClassCrush account",
       `<div style="font-family: Arial; padding: 20px;">
     <h2>Welcome to ClassCrush 👋</h2>
