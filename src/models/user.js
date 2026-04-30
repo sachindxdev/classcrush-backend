@@ -78,6 +78,13 @@ const userSchema = new Schema(
     verificationToken: {
       type: String,
     },
+
+    deleteToken: {
+      type: String,
+    },
+    deleteTokenExpiry: {
+      type: Date,
+    },
   },
   { timestamps: true },
 );
