@@ -3,6 +3,9 @@ const { userAuth } = require("../middlewares/auth");
 const ConnectionRequest = require("../models/connectionRequest");
 const User = require("../models/user");
 const userRouter = express.Router();
+const bcrypt = require("bcrypt");
+const crypto = require("crypto");
+const { sendEmail } = require("../services/sendEmail");
 
 const USER_SAFE_DATA = "firstName lastName photoUrl age gender about skills";
 
@@ -94,6 +97,65 @@ userRouter.get("/feed", userAuth, async (req, res) => {
     res.send(feedUsers);
   } catch (err) {
     res.status(500).json({ Error: err.message });
+  }
+});
+
+//Reset Password
+userRouter.patch("/user/reset-password", async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!newPassword) {
+      return res.status(400).json({ message: "Password is required" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(400).json({ message: "User Not Found!" });
+    }
+
+    const hashPassword = await bcrypt.hash(newPassword, 10);
+
+    const emailVerificationToken = crypto.randomBytes(32).toString("hex");
+
+    const updatedUser = await User.findOneAndUpdate(
+      { email },
+      {
+        $set: {
+          password: hashPassword,
+          verificationToken: emailVerificationToken,
+          isVerified: false,
+        },
+      },
+      { runValidators: true },
+    );
+
+    const { firstName } = user;
+
+    const link = `${process.env.CLIENT_URL}/verify?token=${emailVerificationToken}`;
+
+    await sendEmail(
+      email,
+      "Verify your ClassCrush account",
+      `<div style="font-family: Arial; padding: 20px;">
+      <h2>Welcome to ClassCrush 👋</h2>
+      <p>Hi ${firstName},</p>
+      <p>Please verify your email to reset your password.</p>
+      <a href="${link}" 
+       style="display:inline-block;padding:10px 20px;background:#4CAF50;color:white;text-decoration:none;border-radius:5px;">
+       Verify Email
+       </a>
+      </div>`,
+    );
+
+    return res.json({
+      message: "Password reset successful.",
+    });
+  } catch (err) {
+    return res.status(400).json({
+      message: err.message || "Something went wrong",
+    });
   }
 });
 
