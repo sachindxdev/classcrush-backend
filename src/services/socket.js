@@ -23,17 +23,26 @@ const initializeSocket = (server) => {
   io.on("connection", (socket) => {
     const { userId } = socket.handshake.auth || {};
 
-    if (userId) {
-      onlineUsers.set(userId, socket.id);
-      io.emit("onlineUsers", Array.from(onlineUsers.keys()));
+    if (!userId) {
+      console.warn("Socket connected without userId, disconnecting.");
+      return socket.disconnect(true);
     }
 
+    onlineUsers.set(userId, socket.id);
+    io.emit("onlineUsers", Array.from(onlineUsers.keys()));
+
     socket.on("joinChat", ({ targetUserId }) => {
+      if (!targetUserId) return;
+
       const roomId = getSecretRoomId(userId, targetUserId);
       socket.join(roomId);
     });
 
     socket.on("sendMessage", async ({ targetUserId, text }) => {
+      if (!targetUserId || !text || !text.trim()) {
+        return socket.emit("errorMessage", { message: "Invalid message" });
+      }
+
       try {
         const roomId = getSecretRoomId(userId, targetUserId);
 
@@ -64,7 +73,7 @@ const initializeSocket = (server) => {
 
         const newMessage = {
           senderId: userId,
-          text,
+          text: text.trim(),
         };
 
         chat.messages.push(newMessage);
@@ -72,19 +81,18 @@ const initializeSocket = (server) => {
 
         io.to(roomId).emit("messageReceived", {
           senderId: userId,
-          text,
+          text: text.trim(),
           createdAt: new Date(),
         });
       } catch (err) {
-        console.log("Socket Error:", err.message);
+        console.error("Socket sendMessage error:", err.message);
+        socket.emit("errorMessage", { message: "Failed to send message" });
       }
     });
 
     socket.on("disconnect", () => {
-      if (userId) {
-        onlineUsers.delete(userId);
-        io.emit("onlineUsers", Array.from(onlineUsers.keys()));
-      }
+      onlineUsers.delete(userId);
+      io.emit("onlineUsers", Array.from(onlineUsers.keys()));
     });
   });
 };
