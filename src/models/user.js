@@ -79,6 +79,13 @@ const userSchema = new Schema(
       type: String,
     },
 
+    resetToken: {
+      type: String,
+    },
+    resetTokenExpiry: {
+      type: Date,
+    },
+
     deleteToken: {
       type: String,
     },
