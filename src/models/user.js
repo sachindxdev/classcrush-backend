@@ -92,6 +92,13 @@ const userSchema = new Schema(
     deleteTokenExpiry: {
       type: Date,
     },
+    isPremium: {
+      type: Boolean,
+      default: false,
+    },
+    membershipType: {
+      type: String,
+    },
   },
   { timestamps: true },
 );
